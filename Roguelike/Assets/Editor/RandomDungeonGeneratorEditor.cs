@@ -14,8 +14,14 @@ public class RandomDungeonGeneratorEditor : Editor {
 
 	public override void OnInspectorGUI() {
 		base.OnInspectorGUI();
+		EditorGUILayout.Space();
+
 		if (GUILayout.Button("Create Dungeon")) {
 			generator.GenerateDungeon();
+		}
+
+		if (GUILayout.Button("Clear Dungeon")) {
+			generator.ClearDungeon();
 		}
 	}
 }
