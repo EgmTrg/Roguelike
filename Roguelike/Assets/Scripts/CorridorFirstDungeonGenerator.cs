@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.PlasticSCM.Editor.WebApi;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class CorridorFirstDungeonGenerator : SimpleRandomWalkDungeonGenerator {
 	[SerializeField] private int corridorLength = 14;
@@ -18,7 +19,7 @@ public class CorridorFirstDungeonGenerator : SimpleRandomWalkDungeonGenerator {
 		HashSet<Vector2Int> floorPositions = new HashSet<Vector2Int>();
 		HashSet<Vector2Int> potentialRoomPositions = new HashSet<Vector2Int>();
 
-		CreateCorridors(floorPositions, potentialRoomPositions);
+		List<List<Vector2Int>> corridors = CreateCorridors(floorPositions, potentialRoomPositions);
 
 		HashSet<Vector2Int> roomPositions = CreateRooms(potentialRoomPositions);
 
@@ -28,8 +29,61 @@ public class CorridorFirstDungeonGenerator : SimpleRandomWalkDungeonGenerator {
 
 		floorPositions.UnionWith(roomPositions);
 
+		for (int i = 0; i < corridors.Count; i++) {
+			corridors[i] = IncreaseCorridorSizeByOne(corridors[i]);
+			corridors[i] = IncreaseCorridorBrush3By3(corridors[i]);
+			floorPositions.UnionWith(corridors[i]);
+		}
+
 		TilemapVisualizer.PaintFloorTiles(floorPositions);
 		WallGenerator.CreateWalls(floorPositions, TilemapVisualizer);
+	}
+
+	private List<Vector2Int> IncreaseCorridorBrush3By3(List<Vector2Int> corridor) {
+		List<Vector2Int> newCorridor = new List<Vector2Int>();
+		for (int i = 1; i < corridor.Count; i++) {
+			for (int k = -1; k < 2; k++) {
+				for (int l = 0; l < 2; l++) {
+					newCorridor.Add(corridor[i - 1] + new Vector2Int(k, l));
+				}
+			}
+		}
+		return newCorridor;
+	}
+
+	private List<Vector2Int> IncreaseCorridorSizeByOne(List<Vector2Int> corridor) {
+		List<Vector2Int> newCorridor = new List<Vector2Int>();
+		Vector2Int previousDirection = Vector2Int.zero;
+
+		for (int i = 1; i < corridor.Count; i++) {
+			Vector2Int directionFromCell = corridor[i] - corridor[i - 1];
+			if (previousDirection != Vector2Int.zero && directionFromCell != previousDirection) {
+				for (int k = -1; k < 2; k++) {
+					for (int l = -1; l < 2; l++) {
+						newCorridor.Add(corridor[i - 1] + new Vector2Int(k, l));
+					}
+				}
+				previousDirection = directionFromCell;
+			} else {
+				Vector2Int newCorridorTileOffset = GetDirection90From(directionFromCell);
+				newCorridor.Add(corridor[i - 1]);
+				newCorridor.Add(corridor[i - 1] + newCorridorTileOffset);
+			}
+		}
+		return newCorridor;
+	}
+
+	private Vector2Int GetDirection90From(Vector2Int directionFromCell) {
+		if (directionFromCell == Vector2Int.up)
+			return Vector2Int.right;
+		if (directionFromCell == Vector2Int.right)
+			return Vector2Int.down;
+		if (directionFromCell == Vector2Int.down)
+			return Vector2Int.left;
+		if (directionFromCell == Vector2Int.left)
+			return Vector2Int.up;
+		return Vector2Int.zero;
+
 	}
 
 	private void CreateRoomsAtDeadEnd(List<Vector2Int> deadEnds, HashSet<Vector2Int> roomFloors) {
@@ -71,16 +125,19 @@ public class CorridorFirstDungeonGenerator : SimpleRandomWalkDungeonGenerator {
 		return roomPositions;
 	}
 
-	private void CreateCorridors(HashSet<Vector2Int> floorPositions, HashSet<Vector2Int> potantialRoomPositions) {
+	private List<List<Vector2Int>> CreateCorridors(HashSet<Vector2Int> floorPositions, HashSet<Vector2Int> potantialRoomPositions) {
 		var currentPosition = startPosition;
 		potantialRoomPositions.Add(currentPosition);
+		List<List<Vector2Int>> corridors = new List<List<Vector2Int>>();
+
 
 		for (int i = 0; i < corridorCount; i++) {
 			var corridor = ProceduralGenerationAlgorithms.RandomWalkCorridor(currentPosition, corridorLength);
+			corridors.Add(corridor);
 			currentPosition = corridor[corridor.Count - 1];
 			potantialRoomPositions.Add(currentPosition);
 			floorPositions.UnionWith(corridor);
 		}
-
+		return corridors;
 	}
 }
